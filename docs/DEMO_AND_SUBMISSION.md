@@ -33,19 +33,21 @@ Setup: mirror the presenter's iPhone. Akmal's phone is on speaker as "the bakery
   - A "call me" mode lets anyone test it on their own phone.
 - A public join page with a QR code that registers testers on Photon and opens iMessage with the first text pre-filled.
 
-**Tools used:** Photon (iMessage), Claude API (Anthropic), Firecrawl, Apify, Cartesia, Railway, Claude Code.
+**Tools used:** Photon (iMessage), Claude API (Anthropic), Firecrawl, Apify (Google Maps actor + our own "Receipts Link Inspector" actor built with Apify AI), Cartesia (voice agent), Railway, Claude Code.
 
 **Existing before kickoff:** nothing. The repo was empty at kickoff.
 
+**Live receipts board:** https://nighthacks-fall-2026-production.up.railway.app/live
+
 **Demo / access instructions:**
-1. Open `<RAILWAY_URL>` on an iPhone (or scan the QR at our table).
+1. Open **https://nighthacks-fall-2026-production.up.railway.app** on an iPhone (or scan the QR at our table).
 2. Enter your iMessage phone number and tap **Open iMessage**, then send the pre-filled text.
 3. Try:
    - a screenshot of a scam text
    - "Is Tartine Bakery open right now?"
    - "Call me and pretend to be Joe's Pizza, ask if they're open till 10"
 
-**iMessage handle:** `<assigned line number from the join page>`
+**iMessage handle:** **+1 (628) 316-7976**. Testers must join at the URL above first; Photon shared lines only accept registered numbers, and the join page shows the exact line to text.
 
 **Captain contact:** Shokhabbos Mukhammatov
 
