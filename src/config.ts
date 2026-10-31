@@ -24,6 +24,8 @@ export const cfg = {
   ).replace(/\/$/, ""),
   port: Number(get("PORT") ?? 3000),
   maxCallsPerUser: Number(get("MAX_CALLS_PER_USER") ?? 2),
+  /** Bro's public iMessage line, shown on the site (Photon shared line). */
+  broNumber: get("BRO_NUMBER") ?? "+16283167976",
 };
 
 export function missing(...keys: (string | undefined)[]): boolean {

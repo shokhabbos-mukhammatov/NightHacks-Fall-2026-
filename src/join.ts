@@ -16,6 +16,7 @@ export const page = (body: string) => `<!doctype html>
   input { width: 100%; box-sizing: border-box; font-size: 18px; padding: 14px; border-radius: 12px; border: 1px solid #c7c7cc; margin: 6px 0 12px; }
   button, .btn { display: block; width: 100%; text-align: center; box-sizing: border-box; font-size: 18px; font-weight: 600; padding: 15px; border-radius: 14px; border: 0; background: #0a84ff; color: #fff; text-decoration: none; cursor: pointer; }
   ul { padding-left: 18px; margin: 18px 0 0; } li { margin: 4px 0; } small { opacity: .6; } .err { color: #ff453a; }
+  .num { font-size: 20px; font-weight: 700; text-align: center; margin: 0 0 18px; padding: 12px; border-radius: 14px; background: rgba(10,132,255,.08); } .num small { font-weight: 400; }
   .qr { display: block; margin: 18px auto 0; width: 180px; height: 180px; } code { font-size: 15px; }
   @media (max-width: 700px), (pointer: coarse) { .qrbox { display: none; } }
 </style></head><body><div class="card">${body}</div></body></html>`;
@@ -26,6 +27,7 @@ export function mountJoin(app: Express) {
     res.type("html").send(
       page(`<h1>Ask the Bro 🤙</h1>
 <p class="sub">The bro who never lies to you. Text him anything you're not sure is true, and every answer comes with receipts 🧾: a word-for-word quote from a real source, or he literally calls and asks.</p>
+<div class="num">📱 Bro's iMessage: <a href="sms:${cfg.broNumber}">${pretty(cfg.broNumber)}</a><br><small>Join below first (10 sec). Bro only answers registered numbers.</small></div>
 <form method="post" action="/join">
   <label for="h">Your iMessage phone number or Apple ID email</label>
   <input id="h" name="handle" required placeholder="+1 415 555 0123" autocomplete="tel" inputmode="email">
@@ -71,3 +73,9 @@ function normalizePhone(s: string): string | undefined {
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** +16283167976 → +1 (628) 316-7976 */
+export function pretty(e164: string) {
+  const d = e164.replace(/\D/g, "");
+  return d.length === 11 && d.startsWith("1") ? `+1 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}` : e164;
+}

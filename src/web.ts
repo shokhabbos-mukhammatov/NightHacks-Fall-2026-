@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { Evidence } from "./evidence.js";
-import { page } from "./join.js";
+import { page, pretty } from "./join.js";
+import { cfg } from "./config.js";
 import { getReport, stats, type BlockedClaim } from "./receipts.js";
 import { normalizeForQuote, sourceLabel } from "./verify.js";
 
@@ -103,7 +104,7 @@ ${r.unverified.length ? `<h2>🤷 Couldn't confirm</h2><ul>${r.unverified.map((u
       .map((x) => `<li>${VERDICT[x.verdict] ?? x.verdict}: ${esc(x.question)} <small>(${x.kept} proven, ${x.blocked} blocked)</small></li>`)
       .join("");
     res.type("html").send(
-      page(`${css}<meta http-equiv="refresh" content="4"><h1>Ask the Bro 🤙 live</h1>
+      page(`${css}<meta http-equiv="refresh" content="4"><h1>Ask the Bro 🤙 live</h1><p class="sub">Text Bro on iMessage: <b>${pretty(cfg.broNumber)}</b> (join at ${cfg.baseUrl.replace(/^https?:\/\//, "")} first)</p>
 <div class="row"><div><div class="big">${stats.checks}</div>checks</div><div><div class="big">${stats.claimsKept}</div>claims proven</div><div><div class="big" style="color:#ff453a">${stats.claimsBlocked}</div>unproven claims tossed</div></div>
 <h2>Latest</h2><ul>${recent || "<li>Waiting for the first text…</li>"}</ul>`),
     );
