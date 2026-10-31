@@ -33,7 +33,7 @@ Setup: mirror the presenter's iPhone. Akmal's phone is on speaker as "the bakery
   - A "call me" mode lets anyone test it on their own phone.
 - A public join page with a QR code that registers testers on Photon and opens iMessage with the first text pre-filled.
 
-**Tools used:** Photon (iMessage), Claude API (Anthropic), Firecrawl, Apify (Google Maps actor + our own "Bro Link Inspector" actor built with Apify AI), Cartesia (voice agent), Railway, Claude Code.
+**Tools used:** Photon (iMessage), Claude API (Anthropic), Firecrawl, Apify (Google Maps actor + our own "receipts-link-inspector" actor built with Apify AI), Cartesia (voice agent), Railway, Claude Code.
 
 **Existing before kickoff:** nothing. The repo was empty at kickoff.
 
