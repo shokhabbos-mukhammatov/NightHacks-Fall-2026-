@@ -32,10 +32,14 @@ Open the deployed URL, enter your iPhone number, and tap **Open iMessage**. Then
 
 ## Stack
 - **Photon** (Beta): iMessage shared lines; Socket.IO events in, HTTP API out
-- **Claude** (`claude-opus-5-5`, structured outputs): intake, cited answering, support audit
+- **Claude** (model set by `ANTHROPIC_MODEL`, structured outputs): intake, cited answering, support audit
 - **Firecrawl**: web search and scraping
 - **Apify**: Google Maps listing actor
 - **Cartesia**: outbound voice agent and call transcripts
+
+## Docs
+- [Build plan, architecture and status](docs/PLAN.md)
+- [Demo script and submission draft](docs/DEMO_AND_SUBMISSION.md)
 
 ## Run
 ```bash
