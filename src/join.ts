@@ -2,8 +2,9 @@ import type { Express } from "express";
 import QRCode from "qrcode";
 import { cfg } from "./config.js";
 import { createAssignment } from "./photon.js";
+import { stats } from "./receipts.js";
 
-const page = (body: string) => `<!doctype html>
+export const page = (body: string) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Receipts 🧾 the iMessage agent that never guesses</title>
 <style>
@@ -30,6 +31,7 @@ export function mountJoin(app: Express) {
   <button type="submit">Start texting Receipts</button>
 </form>
 <ul><li>Forward a sketchy text or screenshot</li><li>“Is Tartine open right now?”</li><li>“Call me and pretend to be Joe's Pizza”</li></ul>
+${stats.checks ? `<p style="text-align:center"><small>🛡️ ${stats.claimsBlocked} unprovable claims blocked across ${stats.checks} checks tonight</small></p>` : ""}
 <img class="qr" src="${qr}" alt="QR code to this page"><p style="text-align:center"><small>Scan to try it on your phone</small></p>`),
     );
   });

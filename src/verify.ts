@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { askJSON, type UserContent } from "./llm.js";
 import { EvidenceStore, hostname, mapsLookup, scrapeUrl, webSearch, type Evidence } from "./evidence.js";
+import { saveReport, type BlockedClaim } from "./receipts.js";
 
 // ---------------------------------------------------------------------------
 // Step 4 — the hard guarantee. Pure code, no model involved.
@@ -41,6 +42,31 @@ export function phoneInEvidence(phone: string, evidence: Evidence[]): Evidence |
 export function toE164(phone: string): string | undefined {
   const d = digits(phone);
   return d.length === 10 ? `+1${d}` : undefined;
+}
+
+
+/** Links/domains that literally appear in text (found by regex, never by the model). */
+export function extractLinks(text: string): { raw: string; url: string; domain: string }[] {
+  const re = /\b((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,24}(?:\/[^\s"'<>)]*)?)/gi;
+  const seen = new Set<string>();
+  const out: { raw: string; url: string; domain: string }[] = [];
+  for (const m of text.matchAll(re)) {
+    const raw = m[1].replace(/[.,;:!?]+$/, "");
+    if (/^\d+(\.\d+)+$/.test(raw) || /@/.test(text.slice(Math.max(0, m.index! - 1), m.index!))) continue; // numbers, emails
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    let host: string;
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      continue;
+    }
+    if (!/\.[a-z]{2,24}$/.test(host) || /\.(png|jpe?g|gif|pdf|txt)$/.test(host)) continue;
+    const domain = host.replace(/^www\./, "");
+    if (seen.has(domain)) continue;
+    seen.add(domain);
+    out.push({ raw, url, domain });
+  }
+  return out.slice(0, 4);
 }
 
 // ---------------------------------------------------------------------------
@@ -125,14 +151,20 @@ export async function gather(plan: Plan, store: EvidenceStore, userText: string,
   if (userText.trim()) store.add({ kind: "input", title: "Your message", text: userText });
   if (plan.screenshotText.trim()) store.add({ kind: "input", title: "Your screenshot", text: plan.screenshotText });
 
+  // Deterministic facts about links in what the user sent: computed by code, safe to quote.
+  const links = extractLinks(inputBlob);
+  if (links.length) {
+    store.add({
+      kind: "computed",
+      title: "Link check (computed by Receipts' code, not AI)",
+      text: links.map((l) => `The link "${l.raw}" in your message points to the website domain ${l.domain}.`).join("\n"),
+    });
+  }
+
   const jobs: Promise<unknown>[] = [];
+  for (const l of links.slice(0, 2)) jobs.push(scrapeUrl(store, l.url));
   for (const item of plan.items.slice(0, 3)) {
     for (const q of item.searchQueries.slice(0, 2)) jobs.push(webSearch(store, q, 4));
-    for (const raw of item.urls.slice(0, 2)) {
-      // Only inspect links that literally appear in what the user sent.
-      if (!inputBlob.toLowerCase().includes(raw.toLowerCase().replace(/^https?:\/\//, ""))) continue;
-      jobs.push(scrapeUrl(store, /^https?:\/\//i.test(raw) ? raw : `https://${raw}`));
-    }
     if (item.type === "live_business" && item.businessName) {
       onStatus(`📍 Pulling the official Google Maps listing for ${item.businessName}…`);
       jobs.push(mapsLookup(store, item.businessName, item.businessArea || "San Francisco, CA"));
@@ -190,7 +222,7 @@ const ANSWER_SYSTEM = `You are the answering step of "Receipts". You may ONLY us
 Rules:
 1. Every claim you make must cite one evidenceId and include "quote": a span copied CHARACTER-FOR-CHARACTER from that evidence's text (5-30 words). Do not paraphrase, fix typos, merge sentences, or add ellipses inside a quote. Quotes that are not exact will be automatically deleted.
 2. Claim "text" must say no more than its quote supports. One fact per claim. Max 4 claims, most decisive first.
-3. Evidence titled "Your message"/"Your screenshot" is what the USER sent: you may quote it only to describe what the suspicious message says, never as proof that something is true.
+3. Evidence titled "Your message"/"Your screenshot" is what the USER sent: you may quote it only to describe what the suspicious message says, never as proof that something is true. Evidence of kind "computed" is a deterministic fact produced by code (e.g. the real domain a link points to) and can be quoted as proof.
 4. If evidence is missing, weak, outdated, or conflicting, say so in "unverified" (short phrases of what you could not confirm) — never fill gaps.
 5. verdict: "scam"/"likely_scam"/"legit" for suspicious messages; "true"/"false"/"mixed" for claims; "unverified" when evidence is insufficient. Be conservative.
 6. callSuggestion.worthCalling = true only if the question is something the business itself must answer live (open right now, availability, wait time) AND an evidence item contains its phone number. Copy that phone number exactly and the evidenceId it came from; question = one short question for the caller. Otherwise worthCalling=false and other fields "".
@@ -257,10 +289,12 @@ export type Verified = {
   unverified: string[];
   call?: { phone: string; businessName: string; question: string; source: Evidence };
   checked: Evidence[];
+  reportId: string;
 };
 
 export async function verifyWithEvidence(question: string, store: EvidenceStore): Promise<Verified> {
   const raw = await answer(question, store);
+  const blocked: BlockedClaim[] = [];
 
   // Step 4: exact-quote check against the stored source text.
   const quoted = raw.claims.flatMap((c) => {
@@ -268,7 +302,8 @@ export async function verifyWithEvidence(question: string, store: EvidenceStore)
     // On a call transcript, only what the business said counts — never our own caller's words.
     const quotable = ev?.kind === "call" ? ev.text.split("\n").filter((l) => l.startsWith("Business:")).join("\n") : ev?.text;
     if (!ev || !quotable || !quoteInSource(c.quote, quotable)) {
-      console.log(`[verify] DROPPED (quote not in ${c.evidenceId}): ${c.text} | "${c.quote}"`);
+      console.log(`[verify] BLOCKED (quote not in ${c.evidenceId}): ${c.text} | "${c.quote}"`);
+      blocked.push({ ...c, reason: ev ? "quote_not_in_source" : "unknown_source" });
       return [];
     }
     return [{ ...c, ev }];
@@ -276,12 +311,14 @@ export async function verifyWithEvidence(question: string, store: EvidenceStore)
 
   // Step 5: support check.
   const supported = await supportCheck(quoted);
-  const claims: VerifiedClaim[] = quoted
-    .filter((_, i) => {
-      if (!supported[i]) console.log(`[verify] DROPPED (unsupported): ${quoted[i].text}`);
-      return supported[i];
-    })
-    .map((c) => ({ text: c.text, quote: c.quote, evidence: c.ev }));
+  const claims: VerifiedClaim[] = [];
+  quoted.forEach((c, i) => {
+    if (supported[i]) claims.push({ text: c.text, quote: c.quote, evidence: c.ev });
+    else {
+      console.log(`[verify] BLOCKED (unsupported): ${c.text}`);
+      blocked.push({ text: c.text, quote: c.quote, evidenceId: c.evidenceId, reason: "quote_does_not_support" });
+    }
+  });
 
   // Proof claims must come from real sources, not from what the user sent us.
   const proofClaims = claims.filter((c) => c.evidence.kind !== "input");
@@ -295,18 +332,22 @@ export async function verifyWithEvidence(question: string, store: EvidenceStore)
     if (src && e164) call = { phone: e164, businessName: raw.callSuggestion.businessName, question: raw.callSuggestion.question, source: src };
   }
 
+  const report = saveReport({ question, verdict, kept: claims, blocked, unverified: raw.unverified, evidence: store.all() });
+
   return {
     verdict,
     claims,
-    dropped: raw.claims.length - claims.length,
+    dropped: blocked.length,
     unverified: raw.unverified,
     call,
     checked: store.all().filter((e) => e.kind !== "input"),
+    reportId: report.id,
   };
 }
 
 export function sourceLabel(e: Evidence) {
   if (e.kind === "call") return e.title;
   if (e.kind === "maps") return "Google Maps listing";
+  if (e.kind === "computed") return "link check (computed by code)";
   return hostname(e.url) || e.title;
 }

@@ -17,3 +17,23 @@ assert.ok(phoneInEvidence("+1 415-487-2600", ev), "number present in evidence");
 assert.equal(phoneInEvidence("+1 415-555-0000", ev), undefined, "invented number rejected");
 
 console.log("✅ quote + phone guarantees: all checks passed");
+
+// Link extraction is deterministic (regex), so the domain fact can be quoted as proof.
+import { extractLinks } from "../src/verify.js";
+const links = extractLinks("USPS: your package is held. Pay $1.99 at https://usps-redelivery.co/pay?id=7 or visit www.example.com. Email me at a@b.com");
+assert.deepEqual(links.map((l) => l.domain), ["usps-redelivery.co", "example.com"], "domains found, email skipped");
+assert.equal(extractLinks("Version 2.1.3 costs $5.99").length, 0, "numbers aren't links");
+
+// Receipts page highlights the quote inside its real source text.
+import { _inContext } from "../src/web.js";
+const html = _inContext("will not send customers text messages", src);
+assert.ok(html.includes("<mark>"), "quote highlighted in context");
+
+// Reply rendering never states anything beyond the kept claims.
+import { renderVerified } from "../src/format.js";
+const reply = renderVerified({
+  verdict: "unverified", claims: [], dropped: 2, unverified: ["whether the CEO said it"], checked: [], reportId: "abc",
+});
+assert.ok(reply.startsWith("❓"), "no proof → ❓");
+assert.ok(reply.includes("blocked 2 claims"), "blocked count shown");
+console.log("✅ link extraction, receipts page, and reply rendering: all checks passed");

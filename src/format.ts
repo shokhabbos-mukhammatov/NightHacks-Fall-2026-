@@ -1,3 +1,4 @@
+import { cfg } from "./config.js";
 import type { Verified } from "./verify.js";
 import { sourceLabel } from "./verify.js";
 
@@ -57,6 +58,13 @@ export function renderVerified(v: Verified): string {
         : "I couldn't find any source that proves it either way, so I won't guess.",
     );
   }
+
+  lines.push("");
+  lines.push(
+    v.dropped > 0
+      ? `🛡️ I blocked ${v.dropped} claim${v.dropped === 1 ? "" : "s"} I couldn't back with an exact quote. Full receipts: ${cfg.baseUrl}/r/${v.reportId}`
+      : `Full receipts: ${cfg.baseUrl}/r/${v.reportId}`,
+  );
 
   if (v.call) {
     lines.push("");

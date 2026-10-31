@@ -104,6 +104,7 @@ src/join.ts: GET / (landing page + QR), POST /join → Photon create shared-line
 | # | Target | Milestone | Status |
 |---|---|---|---|
 | 0 | 6:45 | Code scaffold: pipeline, quote checker, phone, join page, tests | ✅ pushed |
+| 0b | 7:05 | Public receipts page `/r/:id` (quotes highlighted in source, **blocked claims shown with reason**), `/live` stage counter, link check computed by code | ✅ pushed |
 | 1 | 7:05 | Railway deploy live; first real iMessage round trip; confirm the event shape from logs | ⏳ needs keys and deploy |
 | 2 | 7:20 | Join page tested by Akmal from scratch (QR → join → text) | ⏳ |
 | 3 | 8:00 | Web verification tuned on real inputs: scam screenshot, claim, unverifiable question | ⏳ |

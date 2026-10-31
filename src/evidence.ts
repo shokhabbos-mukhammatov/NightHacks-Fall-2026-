@@ -2,7 +2,7 @@ import { cfg } from "./config.js";
 
 export type Evidence = {
   id: string; // "E1", "E2", ... — what the model cites
-  kind: "web" | "maps" | "call" | "input";
+  kind: "web" | "maps" | "call" | "input" | "computed";
   title: string;
   url?: string;
   phone?: string;

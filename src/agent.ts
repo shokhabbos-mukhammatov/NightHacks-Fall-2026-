@@ -3,6 +3,7 @@ import { EvidenceStore } from "./evidence.js";
 import { ONBOARDING, renderVerified } from "./format.js";
 import { imageBlock, type UserContent } from "./llm.js";
 import { addTranscriptEvidence, phoneReady, placeCall, type CallRequest } from "./phone.js";
+import { stats } from "./receipts.js";
 import { downloadAttachment, sendText, setTyping, type Inbound } from "./photon.js";
 import { gather, sourceLabel, toE164, understand, verifyWithEvidence } from "./verify.js";
 
@@ -122,6 +123,7 @@ async function runCall(req: CallRequest, state: SpaceState, say: (t: string) => 
   if (!phoneReady()) return say("📞 Phone checks aren't switched on right now, so I can only verify from the web for the moment.");
   if (state.callsUsed >= cfg.maxCallsPerUser) return say(`📞 You've used your ${cfg.maxCallsPerUser} test calls. Web checks are still unlimited!`);
   state.callsUsed++;
+  stats.calls++;
 
   await say(intro ?? `📞 Calling ${req.businessName} at ${req.toNumber} (${req.sourceLabel}) to ask: "${req.question}"`);
   const result = await placeCall(req, (s) => void say(s));
