@@ -35,7 +35,7 @@ function trimDoc(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").slice(0, MAX_DOC_CHARS);
 }
 
-async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+export async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let t: NodeJS.Timeout;
   const timeout = new Promise<never>((_, rej) => (t = setTimeout(() => rej(new Error(`${label} timed out`)), ms)));
   return Promise.race([p, timeout]).finally(() => clearTimeout(t));
@@ -54,7 +54,7 @@ export async function webSearch(store: EvidenceStore, query: string, limit = 4):
         scrapeOptions: { formats: [{ type: "markdown" }], onlyMainContent: true },
       }),
     }),
-    45_000,
+    30_000,
     "web search",
   );
   if (!res.ok) throw new Error(`firecrawl search ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -81,7 +81,7 @@ export async function scrapeUrl(store: EvidenceStore, url: string): Promise<Evid
       headers: { Authorization: `Bearer ${cfg.firecrawlKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
     }),
-    40_000,
+    25_000,
     "scrape",
   );
   if (!res.ok) {
@@ -107,7 +107,7 @@ export async function scrapeUrl(store: EvidenceStore, url: string): Promise<Evid
 /** Apify Google Maps actor → official listing (phone, hours, status). */
 export async function mapsLookup(store: EvidenceStore, query: string, near = "San Francisco, CA"): Promise<Evidence[]> {
   if (!cfg.apifyToken) return [];
-  const url = `https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token=${cfg.apifyToken}&timeout=90`;
+  const url = `https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token=${cfg.apifyToken}&timeout=40&memory=1024`;
   const res = await withTimeout(
     fetch(url, {
       method: "POST",
@@ -115,12 +115,19 @@ export async function mapsLookup(store: EvidenceStore, query: string, near = "Sa
       body: JSON.stringify({
         searchStringsArray: [query],
         locationQuery: near,
-        maxCrawledPlacesPerSearch: 2,
+        maxCrawledPlacesPerSearch: 1,
         language: "en",
         skipClosedPlaces: false,
+        maxReviews: 0,
+        maxImages: 0,
+        maxQuestions: 0,
+        scrapeReviewsPersonalData: false,
+        scrapeContacts: false,
+        scrapeDirectories: false,
+        scrapeTableReservationProvider: false,
       }),
     }),
-    100_000,
+    42_000,
     "maps lookup",
   );
   if (!res.ok) throw new Error(`apify ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -166,12 +173,12 @@ export async function inspectLink(store: EvidenceStore, url: string): Promise<Ev
   if (!cfg.apifyToken || !cfg.apifyLinkActor) return;
   const actor = cfg.apifyLinkActor.replace("/", "~");
   const res = await withTimeout(
-    fetch(`https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${cfg.apifyToken}&timeout=60`, {
+    fetch(`https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${cfg.apifyToken}&timeout=35`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
     }),
-    70_000,
+    40_000,
     "link inspector",
   );
   if (!res.ok) throw new Error(`link inspector ${res.status}: ${(await res.text()).slice(0, 300)}`);

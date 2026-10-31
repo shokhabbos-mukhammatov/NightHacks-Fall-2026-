@@ -1,5 +1,5 @@
 import { cfg } from "./config.js";
-import { EvidenceStore } from "./evidence.js";
+import { EvidenceStore, withTimeout } from "./evidence.js";
 import { ONBOARDING, renderVerified } from "./format.js";
 import { imageBlock, type UserContent } from "./llm.js";
 import { addTranscriptEvidence, phoneReady, placeCall, type CallRequest } from "./phone.js";
@@ -59,7 +59,7 @@ async function handle(msg: Inbound) {
       return;
     }
 
-    const plan = await understand(msg.text, images);
+    const plan = await withTimeout(understand(msg.text, images), 45_000, "understanding");
     console.log("[agent] plan", JSON.stringify(plan).slice(0, 600));
 
     if (plan.intent === "smalltalk" || plan.items.length === 0) {
@@ -88,9 +88,15 @@ async function handle(msg: Inbound) {
 
     await say(statusLine(plan));
     const store = new EvidenceStore();
-    await gather(plan, store, msg.text, (s) => void say(s));
-    const question = plan.items.map((i) => i.claim).join("\n");
-    const result = await verifyWithEvidence(question, store);
+    const slow = setTimeout(() => void say("⏳ Still digging through sources, almost there…"), 25_000);
+    let result: Awaited<ReturnType<typeof verifyWithEvidence>>;
+    try {
+      await gather(plan, store, msg.text, (s) => void say(s));
+      const question = plan.items.map((i) => i.claim).join("\n");
+      result = await withTimeout(verifyWithEvidence(question, store), 75_000, "verification");
+    } finally {
+      clearTimeout(slow);
+    }
     console.log(`[agent] verdict ${result.verdict}, ${result.claims.length} claims kept, ${result.dropped} dropped`);
 
     if (result.call && phoneReady()) {
@@ -105,7 +111,12 @@ async function handle(msg: Inbound) {
     await say(renderVerified(result));
   } catch (err) {
     console.error("[agent] error", err);
-    await say("⚠️ Something broke on my side while checking. I'd rather say nothing than guess, so give it another try in a moment.");
+    const timedOut = /timed out/.test((err as Error)?.message ?? "");
+    await say(
+      timedOut
+        ? "⏳ My sources took too long to answer, and I won't guess without them. Try again in a moment, or ask something more specific."
+        : "⚠️ Something broke on my side while checking. I'd rather say nothing than guess, so give it another try in a moment.",
+    );
   } finally {
     clearInterval(typingTimer);
     void setTyping(msg.spaceId, msg.agentUserId, false);
