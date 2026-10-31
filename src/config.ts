@@ -16,7 +16,12 @@ export const cfg = {
     fromNumberId: get("CARTESIA_FROM_NUMBER_ID"),
     webhookSecret: get("CARTESIA_WEBHOOK_SECRET"),
   },
-  baseUrl: (get("BASE_URL") ?? get("RAILWAY_PUBLIC_DOMAIN")?.replace(/^/, "https://") ?? "http://localhost:3000").replace(/\/$/, ""),
+  // Prefer an explicit BASE_URL, but ignore the .env.example placeholder; Railway also exposes its domain.
+  baseUrl: (
+    (get("BASE_URL") && !get("BASE_URL")!.includes("your-app") ? get("BASE_URL") : undefined) ??
+    (get("RAILWAY_PUBLIC_DOMAIN") ? `https://${get("RAILWAY_PUBLIC_DOMAIN")}` : undefined) ??
+    "http://localhost:3000"
+  ).replace(/\/$/, ""),
   port: Number(get("PORT") ?? 3000),
   maxCallsPerUser: Number(get("MAX_CALLS_PER_USER") ?? 2),
 };

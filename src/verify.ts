@@ -134,7 +134,7 @@ Return JSON:
   - type: "scam" (suspicious message/link/number/offer), "fact" (general claim), "live_business" (something only the business can answer right now: open now, availability, wait time, today's specials).
   - searchQueries: 1-2 web searches that would surface PRIMARY/official sources (official sites, government, the company's own help pages, reputable news). For scams include the official organization's guidance and the domain/number itself.
   - urls: URLs or bare domains that appear literally in the user's message or screenshot (so we can inspect them). Never invent URLs.
-  - businessName / businessArea: for live_business, the business and city/neighborhood (default "San Francisco, CA"); else "".
+  - businessName / businessArea: whenever the item is about a specific LOCAL business (restaurant, cafe, shop, venue, clinic) of any type, its name and city/neighborhood (default "San Francisco, CA"). Leave "" for big companies, agencies, or brands (USPS, banks, Apple) and for general claims.
   - phoneQuestion: for live_business, the single short question a caller should ask the business; else "".`;
 
 export async function understand(text: string, images: UserContent): Promise<Plan> {
@@ -165,7 +165,7 @@ export async function gather(plan: Plan, store: EvidenceStore, userText: string,
   for (const l of links.slice(0, 2)) jobs.push(scrapeUrl(store, l.url), inspectLink(store, l.url));
   for (const item of plan.items.slice(0, 3)) {
     for (const q of item.searchQueries.slice(0, 2)) jobs.push(webSearch(store, q, 4));
-    if (item.type === "live_business" && item.businessName) {
+    if (item.businessName) {
       onStatus(`📍 Pulling the official Google Maps listing for ${item.businessName}…`);
       jobs.push(mapsLookup(store, item.businessName, item.businessArea || "San Francisco, CA"));
     }
@@ -222,10 +222,12 @@ const ANSWER_SYSTEM = `You are the answering step of "Receipts". You may ONLY us
 Rules:
 1. Every claim you make must cite one evidenceId and include "quote": a span copied CHARACTER-FOR-CHARACTER from that evidence's text (5-30 words). Do not paraphrase, fix typos, merge sentences, or add ellipses inside a quote. Quotes that are not exact will be automatically deleted.
 2. Claim "text" must say no more than its quote supports. One fact per claim. Max 4 claims, most decisive first.
+   Phrase claims as what the source says, e.g. "The restaurant's answer on Yelp says its meat is not certified halal." Do NOT add commentary, opinions, or caveats inside a claim (put caveats in "unverified" instead).
+   Prefer statements made by the business/organization itself (its website, its replies, a call) over third parties.
 3. Evidence titled "Your message"/"Your screenshot" is what the USER sent: you may quote it only to describe what the suspicious message says, never as proof that something is true. Evidence of kind "computed" is a deterministic fact produced by code (e.g. the real domain a link points to) and can be quoted as proof.
 4. If evidence is missing, weak, outdated, or conflicting, say so in "unverified" (short phrases of what you could not confirm) — never fill gaps.
 5. verdict: "scam"/"likely_scam"/"legit" for suspicious messages; "true"/"false"/"mixed" for claims; "unverified" when evidence is insufficient. Be conservative.
-6. callSuggestion.worthCalling = true only if the question is something the business itself must answer live (open right now, availability, wait time) AND an evidence item contains its phone number. Copy that phone number exactly and the evidenceId it came from; question = one short question for the caller. Otherwise worthCalling=false and other fields "".
+6. callSuggestion.worthCalling = true when the question is about a specific business and the business itself could settle it on the phone (open now, availability, wait times, ingredients/halal/allergens/vegan, policies, prices) AND the verdict is not already fully proven by the business's own words, AND an evidence item contains its phone number. Copy that phone number exactly and the evidenceId it came from; question = one short, neutral question for the caller (e.g. "Is your meat halal-certified?"). Otherwise worthCalling=false and other fields "".
 7. For a phone-call transcript, only lines starting "Business:" are statements by the business.`;
 
 function renderEvidence(items: Evidence[]) {
@@ -247,12 +249,14 @@ export async function answer(question: string, store: EvidenceStore): Promise<An
 
 const SupportZ = z.object({ results: z.array(z.object({ index: z.number(), supported: z.boolean() })) });
 
-async function supportCheck(claims: Answer["claims"]): Promise<boolean[]> {
+async function supportCheck(claims: (Answer["claims"][number] & { ev: Evidence })[]): Promise<boolean[]> {
   if (claims.length === 0) return [];
-  const listing = claims.map((c, i) => `#${i}\nCLAIM: ${c.text}\nQUOTE: "${c.quote}"`).join("\n\n");
+  const listing = claims
+    .map((c, i) => `#${i}\nSOURCE: ${c.ev.title}${c.ev.url ? ` (${c.ev.url})` : ""} [${c.ev.kind}]\nCLAIM: ${c.text}\nQUOTE: "${c.quote}"`)
+    .join("\n\n");
   const res = await askJSON({
     system:
-      "You are a strict fact-checking auditor. For each item, answer whether the QUOTE, read on its own, fully supports the CLAIM. If the claim adds anything not in the quote (numbers, times, causes, certainty), it is NOT supported.",
+      "You are a strict fact-checking auditor. For each item, decide whether the QUOTE, taken from the named SOURCE, supports the CLAIM. Attribution is fine: a claim like \"Yelp's business answer says X\" is supported if the source is that Yelp page and the quote says X. A claim is NOT supported if it adds facts, numbers, times, causes, or certainty that the quote doesn't contain, or if it misstates what the quote says.",
     content: [{ type: "text", text: listing }],
     jsonSchema: {
       type: "object",
