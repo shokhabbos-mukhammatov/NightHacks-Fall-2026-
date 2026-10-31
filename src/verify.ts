@@ -70,6 +70,17 @@ export function extractLinks(text: string): { raw: string; url: string; domain: 
   return out.slice(0, 4);
 }
 
+
+/** US phone numbers that literally appear in text, normalized to (xxx) xxx-xxxx. */
+export function extractPhones(text: string): string[] {
+  const out = new Set<string>();
+  for (const m of text.matchAll(/(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g)) {
+    if (/^[01]/.test(m[1])) continue; // not a valid US area code
+    out.add(`(${m[1]}) ${m[2]}-${m[3]}`);
+  }
+  return [...out].slice(0, 2);
+}
+
 // ---------------------------------------------------------------------------
 // Step 1 — understand the request
 // ---------------------------------------------------------------------------
@@ -81,7 +92,7 @@ const PlanZ = z.object({
   items: z.array(
     z.object({
       claim: z.string(),
-      type: z.enum(["scam", "fact", "live_business"]),
+      type: z.enum(["scam", "fact", "live_business", "investigate"]),
       searchQueries: z.array(z.string()),
       urls: z.array(z.string()),
       businessName: z.string(),
@@ -108,7 +119,7 @@ const planSchema = {
         required: ["claim", "type", "searchQueries", "urls", "businessName", "businessArea", "phoneQuestion"],
         properties: {
           claim: { type: "string" },
-          type: { type: "string", enum: ["scam", "fact", "live_business"] },
+          type: { type: "string", enum: ["scam", "fact", "live_business", "investigate"] },
           searchQueries: { type: "array", items: { type: "string" } },
           urls: { type: "array", items: { type: "string" } },
           businessName: { type: "string" },
@@ -125,17 +136,18 @@ Read the user's message (and screenshot, if any) and decide what must be checked
 
 Return JSON:
 - intent:
-  - "verify": the user wants something checked (a suspicious text/link/number, a claim, a rumor, a deal, whether a business is open, prices, policies, etc.)
+  - "verify": the user wants something checked or looked into (a suspicious text/link/number, an invite or message from someone unknown, a claim, a rumor, a deal, whether a business is open, prices, policies, etc.)
   - "call_me_demo": the user asks Receipts to call THEM (e.g. "call me and pretend to be the bakery") to try the phone verification. Put the business they will role-play in businessName and the question to ask in phoneQuestion, type "live_business".
   - "smalltalk": greetings, thanks, "what can you do", or anything with nothing checkable.
 - reply: only for smalltalk. Reply as "Bro": a chill, warm, funny friend texting back. 1-2 short lowercase-ish lines, at most one "bro/dude/bratha", max one emoji, no swearing. Nudge them to send something to fact-check (sketchy text, screenshot, rumor, "is X open?"). NEVER state facts about the world. Empty string otherwise.
 - screenshotText: if an image is attached, transcribe ALL visible text verbatim (sender, links, phone numbers). Empty string if no image.
 - items: 1-3 checkable claims/questions (empty for smalltalk). For each:
   - claim: a neutral one-line statement of what needs checking, e.g. "This text claiming to be from USPS asking for a $1.99 redelivery fee is legitimate".
-  - type: "scam" (suspicious message/link/number/offer), "fact" (general claim), "live_business" (something only the business can answer right now: open now, availability, wait time, today's specials).
-  - searchQueries: 1-2 web searches that would surface PRIMARY/official sources (official sites, government, the company's own help pages, reputable news). For scams include the official organization's guidance and the domain/number itself.
+  - type: "scam" (suspicious message/link/number/offer), "fact" (general claim), "live_business" (something only the business can answer right now: open now, availability, wait time, today's specials), "investigate" (anything personal or unclear the user wants looked into: an invite with no name, a message from an unknown number, a listing, an event, a job offer, a contest win, a "is this real?" about something that isn't a well-known claim).
+  - For "investigate", split it into the concrete checkable parts as separate items (max 3), e.g. for an anonymous party invite: "The venue/address in this invite exists and is a real place", "This event is publicly listed (Partiful, Eventbrite, Luma, Instagram, the venue's site)", "The link/number in this invite is linked to known scams".
+  - searchQueries: 1-2 web searches that would surface PRIMARY/official sources (official sites, government, the company's own help pages, reputable news). For scams include the official organization's guidance and the domain/number itself. For events include the event name + venue + date. For an unknown phone number, search the number itself (in quotes) with "scam" — never try to identify a private individual.
   - urls: URLs or bare domains that appear literally in the user's message or screenshot (so we can inspect them). Never invent URLs.
-  - businessName / businessArea: whenever the item is about a specific LOCAL business (restaurant, cafe, shop, venue, clinic) of any type, its name and city/neighborhood (default "San Francisco, CA"). Leave "" for big companies, agencies, or brands (USPS, banks, Apple) and for general claims.
+  - businessName / businessArea: whenever the item is about a specific LOCAL business or place (restaurant, cafe, shop, bar, club, event venue, clinic) of any type, its name or street address and city/neighborhood (default "San Francisco, CA"). Leave "" for big companies, agencies, or brands (USPS, banks, Apple) and for general claims.
   - phoneQuestion: for live_business, the single short question a caller should ask the business; else "".`;
 
 export async function understand(text: string, images: UserContent): Promise<Plan> {
@@ -162,8 +174,19 @@ export async function gather(plan: Plan, store: EvidenceStore, userText: string,
     });
   }
 
+  const phones = extractPhones(inputBlob);
+  if (phones.length) {
+    store.add({
+      kind: "computed",
+      title: "Number check (computed by code, not AI)",
+      text: phones.map((p) => `The message contains the phone number ${p}.`).join("\n"),
+    });
+  }
+
   const jobs: Promise<unknown>[] = [];
   for (const l of links.slice(0, 2)) jobs.push(scrapeUrl(store, l.url), inspectLink(store, l.url));
+  // Public scam reports for any number in the message (not identity lookups).
+  for (const p of phones.slice(0, 1)) jobs.push(webSearch(store, `"${p}" scam OR spam text`, 3));
   for (const item of plan.items.slice(0, 3)) {
     for (const q of item.searchQueries.slice(0, 2)) jobs.push(webSearch(store, q, 4));
     if (item.businessName) {
@@ -227,7 +250,7 @@ Rules:
    Prefer statements made by the business/organization itself (its website, its replies, a call) over third parties.
 3. Evidence titled "Your message"/"Your screenshot" is what the USER sent: you may quote it only to describe what the suspicious message says, never as proof that something is true. Evidence of kind "computed" is a deterministic fact produced by code (e.g. the real domain a link points to) and can be quoted as proof.
 4. If evidence is missing, weak, outdated, or conflicting, say so in "unverified" (short casual phrases of what you could not confirm, e.g. "whether it's certified halal") — never fill gaps.
-5. verdict: "scam"/"likely_scam"/"legit" for suspicious messages; "true"/"false"/"mixed" for claims; "unverified" when evidence is insufficient. Be conservative.
+5. verdict: "scam"/"likely_scam"/"legit" for suspicious messages and investigations (invites, unknown senders, offers); "true"/"false"/"mixed" for claims; "unverified" when evidence is insufficient. Be conservative: "legit" needs positive proof (e.g. the event is publicly listed, the venue is real), not just absence of scam reports. For investigations, report what checked out and what didn't as separate claims (e.g. "the address is a real bar in the mission", "no public listing for this party found" goes in unverified). Never identify or speculate about who a private person is.
 6. callSuggestion.worthCalling = true when the question is about a specific business and the business itself could settle it on the phone (open now, availability, wait times, ingredients/halal/allergens/vegan, policies, prices) AND the verdict is not already fully proven by the business's own words, AND an evidence item contains its phone number. Copy that phone number exactly and the evidenceId it came from; question = one short, neutral question for the caller (e.g. "Is your meat halal-certified?"). Otherwise worthCalling=false and other fields "".
 7. For a phone-call transcript, only lines starting "Business:" are statements by the business.`;
 
@@ -334,7 +357,9 @@ export async function verifyWithEvidence(question: string, store: EvidenceStore)
   if (raw.callSuggestion.worthCalling) {
     const src = phoneInEvidence(raw.callSuggestion.phone, store.all());
     const e164 = toE164(raw.callSuggestion.phone);
-    if (src && e164) call = { phone: e164, businessName: raw.callSuggestion.businessName, question: raw.callSuggestion.question, source: src };
+    // Never call a number that came from the suspicious message itself (unknown senders, scam lines).
+    const fromInput = store.all().some((e) => (e.kind === "input" || e.kind === "computed") && digits(e.text).includes(digits(raw.callSuggestion.phone)));
+    if (src && e164 && !fromInput) call = { phone: e164, businessName: raw.callSuggestion.businessName, question: raw.callSuggestion.question, source: src };
   }
 
   const report = saveReport({ question, verdict, kept: claims, blocked, unverified: raw.unverified, evidence: store.all() });

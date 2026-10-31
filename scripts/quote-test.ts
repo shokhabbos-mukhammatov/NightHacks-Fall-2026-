@@ -40,3 +40,8 @@ assert.ok(!reply[0].includes("✅"), "never a ✅ without proof");
 assert.ok(reply[1].includes("tossed 2 claims"), "blocked count shown");
 assert.ok(reply.every((b) => b.length < 600), "bubbles stay phone-sized");
 console.log("✅ link extraction, receipts page, and reply rendering: all checks passed");
+
+import { extractPhones } from "../src/verify.js";
+assert.deepEqual(extractPhones("halloween at 2850 21st St! rsvp text (415) 555-0199 or +1 628.316.7976"), ["(415) 555-0199", "(628) 316-7976"], "phones found");
+assert.equal(extractPhones("order #1234567890 at 12:30").length, 0, "order numbers aren't phones");
+console.log("✅ phone extraction: all checks passed");

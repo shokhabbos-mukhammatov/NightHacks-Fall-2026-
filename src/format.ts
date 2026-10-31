@@ -68,6 +68,7 @@ export const ONBOARDING =
   "try:\n" +
   "• a screenshot of a sketchy text\n" +
   "• \"is tartine open right now?\"\n" +
+  "• a random invite or text from an unknown number 🕵️\n" +
   "• \"call me and pretend to be joe's pizza\" 😂";
 
 export const SAY = {
@@ -75,6 +76,7 @@ export const SAY = {
     scam: () => pick(["on it bro 🔎 checking the official sources", "ooh let me check that real quick 🔎", "hold up, checking if that's legit 🔎"]),
     business: () => pick(["on it bro 🔎", "say less, checking 🔎", "lemme look into that 🔎"]),
     fact: () => pick(["on it bro 🔎 only real sources", "lemme check the receipts 🔎", "checking, gimme a sec 🔎"]),
+    investigate: () => pick(["ooh mystery 🕵️ lemme dig into this", "detective mode on 🕵️ gimme a sec bro", "say less, investigating 🕵️"]),
   },
   maps: (name: string) => `pulling up ${name}'s google listing real quick 📍`,
   slow: () => pick(["still digging, hang tight ⏳", "almost there bro ⏳", "sources are slow tonight, hang on ⏳"]),

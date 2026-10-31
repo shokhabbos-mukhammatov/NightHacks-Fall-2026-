@@ -130,6 +130,7 @@ async function handle(msg: Inbound) {
 function statusLine(plan: Awaited<ReturnType<typeof understand>>) {
   const t = plan.items.map((i) => i.type);
   if (t.includes("scam")) return SAY.status.scam();
+  if (t.includes("investigate")) return SAY.status.investigate();
   if (t.includes("live_business") || plan.items.some((i) => i.businessName)) return SAY.status.business();
   return SAY.status.fact();
 }
