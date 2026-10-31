@@ -1,6 +1,6 @@
 import { cfg } from "./config.js";
 import { EvidenceStore, withTimeout } from "./evidence.js";
-import { ONBOARDING, renderVerified } from "./format.js";
+import { ONBOARDING, SAY, renderVerified } from "./format.js";
 import { imageBlock, type UserContent } from "./llm.js";
 import { addTranscriptEvidence, phoneReady, placeCall, type CallRequest } from "./phone.js";
 import { stats } from "./receipts.js";
@@ -24,6 +24,13 @@ async function handle(msg: Inbound) {
   const state = spaces.get(msg.spaceId) ?? { greeted: false, callsUsed: 0 };
   spaces.set(msg.spaceId, state);
   const say = (text: string) => sendText(msg.spaceId, msg.agentUserId, text).catch((e) => console.error("[send]", e.message));
+  // Multi-bubble replies, in order, with a tiny gap so they land like real texts.
+  const sayAll = async (bubbles: string[]) => {
+    for (const [i, b] of bubbles.filter((x) => x.trim()).entries()) {
+      if (i) await new Promise((r) => setTimeout(r, 700));
+      await say(b);
+    }
+  };
 
   // Keep the typing bubble alive while we work.
   await setTyping(msg.spaceId, msg.agentUserId, true);
@@ -35,7 +42,7 @@ async function handle(msg: Inbound) {
     if (state.pendingCall && YES_CALL.test(msg.text) && msg.attachmentIds.length === 0) {
       const req = state.pendingCall;
       state.pendingCall = undefined;
-      return await runCall(req, state, say);
+      return await runCall(req, state, say, sayAll);
     }
 
     const images: UserContent = [];
@@ -43,7 +50,7 @@ async function handle(msg: Inbound) {
       try {
         const { data, mediaType } = await downloadAttachment(id);
         if (/heic|heif/i.test(mediaType)) {
-          await say("I can't read HEIC photos yet. Could you send a screenshot instead? 📸");
+          await say(SAY.heic);
           continue;
         }
         if (mediaType.startsWith("image/")) images.push(imageBlock(data, mediaType));
@@ -72,7 +79,7 @@ async function handle(msg: Inbound) {
     if (plan.intent === "call_me_demo") {
       const me = toE164(msg.senderHandle);
       const item = plan.items[0];
-      if (!me) return await say("I can only call a US phone number, and you're texting me from an email address. Text me from your phone number to try the call demo 📞");
+      if (!me) return await say(SAY.emailCaller);
       return await runCall(
         {
           toNumber: me,
@@ -82,13 +89,14 @@ async function handle(msg: Inbound) {
         },
         state,
         say,
-        `📞 Calling you now. Pick up and play ${item.businessName || "the business"}. I'll only report what you actually say.`,
+        sayAll,
+        SAY.callingYou(item.businessName || "the business"),
       );
     }
 
     await say(statusLine(plan));
     const store = new EvidenceStore();
-    const slow = setTimeout(() => void say("⏳ Still digging through sources, almost there…"), 25_000);
+    const slow = setTimeout(() => void say(SAY.slow()), 25_000);
     let result: Awaited<ReturnType<typeof verifyWithEvidence>>;
     try {
       await gather(plan, store, msg.text, (s) => void say(s));
@@ -108,15 +116,11 @@ async function handle(msg: Inbound) {
       };
     } else result.call = undefined;
 
-    await say(renderVerified(result));
+    await sayAll(renderVerified(result));
   } catch (err) {
     console.error("[agent] error", err);
     const timedOut = /timed out/.test((err as Error)?.message ?? "");
-    await say(
-      timedOut
-        ? "⏳ My sources took too long to answer, and I won't guess without them. Try again in a moment, or ask something more specific."
-        : "⚠️ Something broke on my side while checking. I'd rather say nothing than guess, so give it another try in a moment.",
-    );
+    await say(timedOut ? SAY.timeout : SAY.error);
   } finally {
     clearInterval(typingTimer);
     void setTyping(msg.spaceId, msg.agentUserId, false);
@@ -125,24 +129,30 @@ async function handle(msg: Inbound) {
 
 function statusLine(plan: Awaited<ReturnType<typeof understand>>) {
   const t = plan.items.map((i) => i.type);
-  if (t.includes("scam")) return "🔎 Checking it against official sources. No guessing, give me a few seconds…";
-  if (t.includes("live_business")) return "🔎 Checking the official listing. If the web can't prove it, I'll offer to call…";
-  return "🔎 Looking for primary sources. I'll only tell you what I can prove…";
+  if (t.includes("scam")) return SAY.status.scam();
+  if (t.includes("live_business") || plan.items.some((i) => i.businessName)) return SAY.status.business();
+  return SAY.status.fact();
 }
 
-async function runCall(req: CallRequest, state: SpaceState, say: (t: string) => Promise<void>, intro?: string) {
-  if (!phoneReady()) return say("📞 Phone checks aren't switched on right now, so I can only verify from the web for the moment.");
-  if (state.callsUsed >= cfg.maxCallsPerUser) return say(`📞 You've used your ${cfg.maxCallsPerUser} test calls. Web checks are still unlimited!`);
+async function runCall(
+  req: CallRequest,
+  state: SpaceState,
+  say: (t: string) => Promise<void>,
+  sayAll: (b: string[]) => Promise<void>,
+  intro?: string,
+) {
+  if (!phoneReady()) return say(SAY.noPhone);
+  if (state.callsUsed >= cfg.maxCallsPerUser) return say(SAY.callLimit(cfg.maxCallsPerUser));
   state.callsUsed++;
   stats.calls++;
 
-  await say(intro ?? `📞 Calling ${req.businessName} at ${req.toNumber} (${req.sourceLabel}) to ask: "${req.question}"`);
+  await say(intro ?? SAY.calling(req.businessName));
   const result = await placeCall(req, (s) => void say(s));
-  if (!result.ok) return say(`❓ Couldn't verify by phone: ${result.reason}. I won't guess.`);
+  if (!result.ok) return say(SAY.callFailed(result.reason));
 
   const store = new EvidenceStore();
   addTranscriptEvidence(store, req, result);
   const verified = await verifyWithEvidence(req.question, store);
   verified.call = undefined;
-  await say(renderVerified(verified));
+  await sayAll(renderVerified(verified));
 }

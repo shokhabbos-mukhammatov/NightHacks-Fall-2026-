@@ -13,7 +13,7 @@ const VERDICT: Record<string, string> = {
   true: "✅ True",
   false: "❌ False",
   mixed: "⚖️ Partly true",
-  unverified: "❓ Couldn't verify",
+  unverified: "🤷 Couldn't prove it either way",
 };
 
 const REASON: Record<BlockedClaim["reason"], string> = {
@@ -89,10 +89,10 @@ export function mountWeb(app: Express) {
     res.type("html").send(
       page(`${css}<h1>${VERDICT[r.verdict] ?? r.verdict}</h1>
 <p class="sub">${esc(r.question)}</p>
-<h2>✅ Proven (${r.kept.length})</h2>${kept || "<p>Nothing could be proven with an exact quote, so Receipts didn't claim anything.</p>"}
-${r.unverified.length ? `<h2>❓ Couldn't confirm</h2><ul>${r.unverified.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>` : ""}
-<h2>🛡️ Blocked before sending (${r.blocked.length})</h2>${blocked || "<p>No claims needed blocking on this check.</p>"}
-<h2>🔎 Everything checked</h2><ul>${checked || "<li>No sources returned anything.</li>"}</ul>
+<h2>✅ What Bro could prove (${r.kept.length})</h2>${kept || "<p>Nothing could be proven with an exact quote, so Bro didn't claim anything.</p>"}
+${r.unverified.length ? `<h2>🤷 Couldn't confirm</h2><ul>${r.unverified.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>` : ""}
+<h2>🛡️ What Bro tossed, because he couldn't back it up (${r.blocked.length})</h2>${blocked || "<p>Nothing needed tossing on this one.</p>"}
+<h2>🔎 Where Bro looked</h2><ul>${checked || "<li>No sources returned anything.</li>"}</ul>
 <p><small>Quotes are matched word-for-word against the stored source by code (ignoring only case, spacing, and quote styles). Checked ${new Date(r.createdAt).toLocaleString("en-US", { timeZone: "America/Los_Angeles" })} PT.</small></p>`),
     );
   });
@@ -103,8 +103,8 @@ ${r.unverified.length ? `<h2>❓ Couldn't confirm</h2><ul>${r.unverified.map((u)
       .map((x) => `<li>${VERDICT[x.verdict] ?? x.verdict}: ${esc(x.question)} <small>(${x.kept} proven, ${x.blocked} blocked)</small></li>`)
       .join("");
     res.type("html").send(
-      page(`${css}<meta http-equiv="refresh" content="4"><h1>Receipts 🧾 live</h1>
-<div class="row"><div><div class="big">${stats.checks}</div>checks</div><div><div class="big">${stats.claimsKept}</div>claims proven</div><div><div class="big" style="color:#ff453a">${stats.claimsBlocked}</div>unprovable claims blocked</div></div>
+      page(`${css}<meta http-equiv="refresh" content="4"><h1>Ask the Bro 🤙 live</h1>
+<div class="row"><div><div class="big">${stats.checks}</div>checks</div><div><div class="big">${stats.claimsKept}</div>claims proven</div><div><div class="big" style="color:#ff453a">${stats.claimsBlocked}</div>unproven claims tossed</div></div>
 <h2>Latest</h2><ul>${recent || "<li>Waiting for the first text…</li>"}</ul>`),
     );
   });

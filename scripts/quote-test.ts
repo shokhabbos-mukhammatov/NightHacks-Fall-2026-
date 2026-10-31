@@ -34,6 +34,9 @@ import { renderVerified } from "../src/format.js";
 const reply = renderVerified({
   verdict: "unverified", claims: [], dropped: 2, unverified: ["whether the CEO said it"], checked: [], reportId: "abc",
 });
-assert.ok(reply.startsWith("❓"), "no proof → ❓");
-assert.ok(reply.includes("blocked 2 claims"), "blocked count shown");
+assert.equal(reply.length, 2, "answer bubble + follow-up bubble");
+assert.ok(reply[0].includes("🤷"), "no proof → honest 'couldn't prove it' headline");
+assert.ok(!reply[0].includes("✅"), "never a ✅ without proof");
+assert.ok(reply[1].includes("tossed 2 claims"), "blocked count shown");
+assert.ok(reply.every((b) => b.length < 600), "bubbles stay phone-sized");
 console.log("✅ link extraction, receipts page, and reply rendering: all checks passed");

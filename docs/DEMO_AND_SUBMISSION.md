@@ -6,7 +6,7 @@ Setup: mirror the presenter's iPhone. Akmal's phone is on speaker as "the bakery
 
 | Time | Do | Say |
 |---|---|---|
-| 0–10 s | Show the iMessage thread with Receipts | "AI agents sound confident even when they're wrong. Receipts is an iMessage agent that's not allowed to say anything it can't prove." |
+| 0–10 s | Show the iMessage thread with Bro | "Everyone has that one friend you text 'bro is this real?' AI bros make stuff up. Ours literally can't: he's not allowed to say anything he can't prove." |
 | 10–35 s | Forward a real scam-text screenshot | "Every bullet is a word-for-word quote from the official source. Our code deletes any claim whose quote isn't literally in the page, so it's checked by code, not by trusting the model." |
 | 35–70 s | Text "Is [bakery] open right now?", reply "call" | "The web can't prove it's open right now, so it calls. The number comes from their Google listing, never from the model." Akmal answers live. "And the answer is quoted from the call." |
 | 70–80 s | Ask something unprovable | "When it can't prove it, it says so and shows what it checked." |
@@ -14,9 +14,9 @@ Setup: mirror the presenter's iPhone. Akmal's phone is on speaker as "the bakery
 
 ## Submission form draft
 
-**Project name:** Receipts: the iMessage agent that never makes things up
+**Project name:** Ask the Bro 🤙: the bro who never lies to you
 
-**One-liner:** Text Receipts anything you're unsure is true, like a scam text, a screenshot, a rumor, or "is this place open?". It checks primary sources, calls the real business when the web isn't enough, and every claim comes with a verbatim quote as a receipt.
+**One-liner:** Text Bro anything you're unsure is true, like a scam text, a screenshot, a rumor, or "is this place open?". He texts back like a friend, checks primary sources, calls the real business when the web isn't enough, and every claim comes with a verbatim quote as a receipt. Code deletes anything he can't prove.
 
 **What we built tonight (everything after kickoff):**
 - An iMessage agent on Photon shared lines, with Socket.IO events in and HTTP replies out. It shows typing and accepts screenshots.
@@ -33,7 +33,7 @@ Setup: mirror the presenter's iPhone. Akmal's phone is on speaker as "the bakery
   - A "call me" mode lets anyone test it on their own phone.
 - A public join page with a QR code that registers testers on Photon and opens iMessage with the first text pre-filled.
 
-**Tools used:** Photon (iMessage), Claude API (Anthropic), Firecrawl, Apify (Google Maps actor + our own "Receipts Link Inspector" actor built with Apify AI), Cartesia (voice agent), Railway, Claude Code.
+**Tools used:** Photon (iMessage), Claude API (Anthropic), Firecrawl, Apify (Google Maps actor + our own "Bro Link Inspector" actor built with Apify AI), Cartesia (voice agent), Railway, Claude Code.
 
 **Existing before kickoff:** nothing. The repo was empty at kickoff.
 

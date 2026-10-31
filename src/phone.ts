@@ -1,5 +1,6 @@
 import { cfg } from "./config.js";
 import { EvidenceStore } from "./evidence.js";
+import { SAY } from "./format.js";
 
 const CARTESIA = "https://api.cartesia.ai";
 const VERSION = "2026-08-14";
@@ -68,7 +69,7 @@ export async function placeCall(req: CallRequest, onStatus: (s: string) => void)
     const status = String(call.status ?? "").toLowerCase();
     if (!announcedLive && (call.start_time || status === "started" || status === "in_progress")) {
       announcedLive = true;
-      onStatus("🔊 They picked up, asking now…");
+      onStatus(SAY.pickedUp);
     }
     if (call.end_time || DONE.has(status)) {
       const transcript: { role: string; text?: string | null }[] = call.transcript ?? [];

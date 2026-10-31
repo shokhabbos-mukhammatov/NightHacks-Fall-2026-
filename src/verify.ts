@@ -2,6 +2,7 @@ import { z } from "zod";
 import { askJSON, type UserContent } from "./llm.js";
 import { EvidenceStore, hostname, inspectLink, mapsLookup, scrapeUrl, webSearch, type Evidence } from "./evidence.js";
 import { saveReport, type BlockedClaim } from "./receipts.js";
+import { SAY } from "./format.js";
 
 // ---------------------------------------------------------------------------
 // Step 4 — the hard guarantee. Pure code, no model involved.
@@ -119,7 +120,7 @@ const planSchema = {
   },
 };
 
-const PLAN_SYSTEM = `You are the intake step of "Receipts", an iMessage agent that only states facts it can prove with sources.
+const PLAN_SYSTEM = `You are the intake step of "Ask the Bro", an iMessage agent (persona: Bro, the user's chill friend) that only states facts it can prove with sources.
 Read the user's message (and screenshot, if any) and decide what must be checked. You do NOT answer the question yourself.
 
 Return JSON:
@@ -127,7 +128,7 @@ Return JSON:
   - "verify": the user wants something checked (a suspicious text/link/number, a claim, a rumor, a deal, whether a business is open, prices, policies, etc.)
   - "call_me_demo": the user asks Receipts to call THEM (e.g. "call me and pretend to be the bakery") to try the phone verification. Put the business they will role-play in businessName and the question to ask in phoneQuestion, type "live_business".
   - "smalltalk": greetings, thanks, "what can you do", or anything with nothing checkable.
-- reply: only for smalltalk — one or two short friendly sentences explaining what Receipts does with an example to try. Never state facts about the world. Empty string otherwise.
+- reply: only for smalltalk. Reply as "Bro": a chill, warm, funny friend texting back. 1-2 short lowercase-ish lines, at most one "bro/dude/bratha", max one emoji, no swearing. Nudge them to send something to fact-check (sketchy text, screenshot, rumor, "is X open?"). NEVER state facts about the world. Empty string otherwise.
 - screenshotText: if an image is attached, transcribe ALL visible text verbatim (sender, links, phone numbers). Empty string if no image.
 - items: 1-3 checkable claims/questions (empty for smalltalk). For each:
   - claim: a neutral one-line statement of what needs checking, e.g. "This text claiming to be from USPS asking for a $1.99 redelivery fee is legitimate".
@@ -166,7 +167,7 @@ export async function gather(plan: Plan, store: EvidenceStore, userText: string,
   for (const item of plan.items.slice(0, 3)) {
     for (const q of item.searchQueries.slice(0, 2)) jobs.push(webSearch(store, q, 4));
     if (item.businessName) {
-      onStatus(`📍 Pulling the official Google Maps listing for ${item.businessName}…`);
+      onStatus(SAY.maps(item.businessName));
       jobs.push(mapsLookup(store, item.businessName, item.businessArea || "San Francisco, CA"));
     }
   }
@@ -217,15 +218,15 @@ const answerSchema = {
   },
 };
 
-const ANSWER_SYSTEM = `You are the answering step of "Receipts". You may ONLY use the numbered EVIDENCE provided. Your own knowledge is not allowed — not even for well-known facts.
+const ANSWER_SYSTEM = `You are the answering step of "Ask the Bro". You may ONLY use the numbered EVIDENCE provided. Your own knowledge is not allowed — not even for well-known facts.
 
 Rules:
 1. Every claim you make must cite one evidenceId and include "quote": a span copied CHARACTER-FOR-CHARACTER from that evidence's text (5-30 words). Do not paraphrase, fix typos, merge sentences, or add ellipses inside a quote. Quotes that are not exact will be automatically deleted.
 2. Claim "text" must say no more than its quote supports. One fact per claim. Max 4 claims, most decisive first.
-   Phrase claims as what the source says, e.g. "The restaurant's answer on Yelp says its meat is not certified halal." Do NOT add commentary, opinions, or caveats inside a claim (put caveats in "unverified" instead).
+   Write claim "text" like a friend texting: casual, lowercase-ish, max 14 words, attributed to the source, e.g. "they said on yelp their meat's not certified halal" or "usps says they never text you links like this". No "bro" inside claims, no emojis, no slang that changes the meaning, no commentary or opinions (put caveats in "unverified").
    Prefer statements made by the business/organization itself (its website, its replies, a call) over third parties.
 3. Evidence titled "Your message"/"Your screenshot" is what the USER sent: you may quote it only to describe what the suspicious message says, never as proof that something is true. Evidence of kind "computed" is a deterministic fact produced by code (e.g. the real domain a link points to) and can be quoted as proof.
-4. If evidence is missing, weak, outdated, or conflicting, say so in "unverified" (short phrases of what you could not confirm) — never fill gaps.
+4. If evidence is missing, weak, outdated, or conflicting, say so in "unverified" (short casual phrases of what you could not confirm, e.g. "whether it's certified halal") — never fill gaps.
 5. verdict: "scam"/"likely_scam"/"legit" for suspicious messages; "true"/"false"/"mixed" for claims; "unverified" when evidence is insufficient. Be conservative.
 6. callSuggestion.worthCalling = true when the question is about a specific business and the business itself could settle it on the phone (open now, availability, wait times, ingredients/halal/allergens/vegan, policies, prices) AND the verdict is not already fully proven by the business's own words, AND an evidence item contains its phone number. Copy that phone number exactly and the evidenceId it came from; question = one short, neutral question for the caller (e.g. "Is your meat halal-certified?"). Otherwise worthCalling=false and other fields "".
 7. For a phone-call transcript, only lines starting "Business:" are statements by the business.`;
@@ -256,7 +257,7 @@ async function supportCheck(claims: (Answer["claims"][number] & { ev: Evidence }
     .join("\n\n");
   const res = await askJSON({
     system:
-      "You are a strict fact-checking auditor. For each item, decide whether the QUOTE, taken from the named SOURCE, supports the CLAIM. Attribution is fine: a claim like \"Yelp's business answer says X\" is supported if the source is that Yelp page and the quote says X. A claim is NOT supported if it adds facts, numbers, times, causes, or certainty that the quote doesn't contain, or if it misstates what the quote says.",
+      "You are a strict fact-checking auditor. For each item, decide whether the QUOTE, taken from the named SOURCE, supports the CLAIM. Attribution is fine: a claim like \"Yelp's business answer says X\" is supported if the source is that Yelp page and the quote says X. Casual texting wording is fine as long as the meaning exactly matches the quote. A claim is NOT supported if it adds facts, numbers, times, causes, or certainty that the quote doesn't contain, or if it misstates what the quote says.",
     content: [{ type: "text", text: listing }],
     jsonSchema: {
       type: "object",

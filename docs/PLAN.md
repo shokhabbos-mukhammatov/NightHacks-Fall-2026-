@@ -1,4 +1,4 @@
-# Receipts: build plan and status
+# Ask the Bro (formerly Receipts): build plan and status
 
 Team: Shokhabbos + Akmal · Night Hack (Founders, Inc.), Oct 30, 2026 · Track: **Photon, Best iMessage Agent You Can Text**
 Hard deadline: **submissions due 9:00 PM**, top-7 demos around 10:00 PM (90 s, no slides).
@@ -109,6 +109,7 @@ src/join.ts: GET / (landing page + QR), POST /join → Photon create shared-line
 | 2 | 7:20 | Join page tested by Akmal from scratch (QR → join → text) | ⏳ |
 | 3 | 8:00 | Web verification tuned on real inputs: scam screenshot, claim, unverifiable question | ⏳ |
 | 4 | 8:30 | Phone verification live: "call me" demo and evidence-sourced business number | ⏳ needs Cartesia |
+| 4b | 8:10 | Rebrand to **Ask the Bro**: bro voice, short two-bubble replies, fixed fact-free templates for headlines and status texts, renamed pages | ✅ pushed |
 | 5 | 8:50 | Stranger test with 2–3 other hackers, fixes, README, submission | ⏳ |
 
 Cut order if late: phone to a real business → "call me" demo → screenshot input. Text verification with receipts is the minimum demo.

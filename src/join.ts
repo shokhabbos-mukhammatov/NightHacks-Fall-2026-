@@ -6,7 +6,7 @@ import { stats } from "./receipts.js";
 
 export const page = (body: string) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Receipts 🧾 the iMessage agent that never guesses</title>
+<title>Ask the Bro 🤙 the bro who never lies to you</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 17px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; margin: 0; display: grid; place-items: center; min-height: 100vh; background: #f4f1ea; color: #1c1c1e; }
@@ -23,15 +23,15 @@ export function mountJoin(app: Express) {
   app.get("/", async (_req, res) => {
     const qr = await QRCode.toDataURL(cfg.baseUrl, { margin: 1, width: 360 });
     res.type("html").send(
-      page(`<h1>Receipts 🧾</h1>
-<p class="sub">The iMessage agent that never makes things up. Every answer comes with proof: a verbatim quote and source, or a real phone call.</p>
+      page(`<h1>Ask the Bro 🤙</h1>
+<p class="sub">The bro who never lies to you. Text him anything you're not sure is true, and every answer comes with receipts 🧾: a word-for-word quote from a real source, or he literally calls and asks.</p>
 <form method="post" action="/join">
   <label for="h">Your iMessage phone number or Apple ID email</label>
   <input id="h" name="handle" required placeholder="+1 415 555 0123" autocomplete="tel" inputmode="email">
-  <button type="submit">Start texting Receipts</button>
+  <button type="submit">Text the Bro</button>
 </form>
-<ul><li>Forward a sketchy text or screenshot</li><li>“Is Tartine open right now?”</li><li>“Call me and pretend to be Joe's Pizza”</li></ul>
-${stats.checks ? `<p style="text-align:center"><small>🛡️ ${stats.claimsBlocked} unprovable claims blocked across ${stats.checks} checks tonight</small></p>` : ""}
+<ul><li>Screenshot a sketchy text: “bro is this a scam?”</li><li>“Is Tartine open right now?”</li><li>“Call me and pretend to be Joe's Pizza” 😂</li></ul>
+${stats.checks ? `<p style="text-align:center"><small>🛡️ Bro refused to say ${stats.claimsBlocked} things he couldn't prove across ${stats.checks} checks tonight</small></p>` : ""}
 <img class="qr" src="${qr}" alt="QR code to this page"><p style="text-align:center"><small>Scan to try it on your phone</small></p>`),
     );
   });
@@ -45,18 +45,18 @@ ${stats.checks ? `<p style="text-align:center"><small>🛡️ ${stats.claimsBloc
     try {
       const a = await createAssignment(handle);
       const line = a.assignedPhoneNumber;
-      const sms = `sms:${line}&body=${encodeURIComponent("Hi Receipts")}`;
+      const sms = `sms:${line}&body=${encodeURIComponent("yo bro")}`;
       console.log(`[join] ${handle} → ${line}`);
       res.type("html").send(
         page(`<h1>You're in ✅</h1>
-<p class="sub">Your Receipts line is <b>${line}</b>. Tap below, then hit send. iMessage requires you to text first.</p>
-<a class="btn" href="${sms}">Open iMessage</a>
-<ul><li>Send it a scam text screenshot</li><li>Ask if a place is open right now</li><li>Paste a claim you've heard</li></ul>
+<p class="sub">Bro's number is <b>${line}</b>. Tap below and hit send. iMessage needs you to text first.</p>
+<a class="btn" href="${sms}">Text the Bro</a>
+<ul><li>Send him a scam text screenshot</li><li>Ask if a place is open right now</li><li>Paste a rumor from the group chat</li></ul>
 <p><small>Text from the same number or Apple ID you entered (${escapeHtml(handle)}).</small></p>`),
       );
     } catch (err) {
       console.error("[join]", (err as Error).message);
-      res.status(500).type("html").send(page(`<h1>Almost 😅</h1><p class="err">We couldn't add you right now (we may be at capacity). Find the Receipts team at their table!</p><a class="btn" href="/">Back</a>`));
+      res.status(500).type("html").send(page(`<h1>Almost 😅</h1><p class="err">We couldn't add you right now (we may be at capacity). Find the Ask the Bro team at their table!</p><a class="btn" href="/">Back</a>`));
     }
   });
 }

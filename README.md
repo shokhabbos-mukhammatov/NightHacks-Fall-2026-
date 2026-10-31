@@ -1,14 +1,17 @@
-# Receipts 🧾 — the iMessage agent that never makes things up
+# Ask the Bro 🤙 — the bro who never lies to you
 
-Text it anything you're not sure is true: a sketchy text, a screenshot, a group-chat claim, "is Tartine open right now?".
-Receipts checks primary sources, and **when the web isn't enough, it calls the real source and asks.**
-Every answer comes with receipts: a verbatim quote and link, or a quote from the phone call. If it can't prove something, it says ❓ instead of guessing.
+Text Bro anything you're not sure is true: a sketchy text, a screenshot, a group-chat rumor, "is Tartine open right now?".
+He texts back like your friend would, short and chill, but **he never makes stuff up.** He checks primary sources, and **when the web isn't enough, he calls the real place and asks.**
+Every answer comes with receipts 🧾: a verbatim quote and link, or a quote from the phone call. If he can't prove it, he says so instead of guessing.
+
+> "nah bro, not halal certified 😬 • they said on yelp their meat's not certified halal"
+> receipts 🧾 → the quote highlighted inside the real Yelp page, plus every claim Bro tossed because he couldn't back it up.
 
 Built at Night Hack (Founders, Inc.) on Oct 30, 2026. **Everything in this repo was written after kickoff.**
 
 ## How the "no hallucination" guarantee works
 
-What we guarantee: **every fact Receipts states is backed by a verbatim quote from a source it actually fetched or heard.**
+What we guarantee: **every fact Bro states is backed by a verbatim quote from a source it actually fetched or heard.**
 
 1. **Understand.** Claude reads the message (and screenshot) and lists what needs checking. It answers nothing here.
 2. **Gather evidence.** Each item is stored with an id:
@@ -18,9 +21,9 @@ What we guarantee: **every fact Receipts states is backed by a verbatim quote fr
 3. **Answer only from evidence.** Claude must return structured JSON where every claim cites an evidence id and an exact quote.
 4. **Exact-quote check (plain code, no AI).** The quote must appear word for word in the stored source, or the claim is deleted (`quoteInSource` in `src/verify.ts`). On a phone transcript, only the business's own lines count.
 5. **Independent support check.** A second Claude pass checks that each quote actually supports its claim; unsupported claims are deleted.
-6. **Reply.** Only the claims that survive are sent, each with its receipt. If nothing survives, Receipts replies ❓ and lists what it checked.
+6. **Reply.** Only the claims that survive are sent, in Bro's voice, each with its receipt. If nothing survives, Bro says he couldn't prove it and lists where he looked. Bro's headlines and status texts are fixed templates with no facts in them, so the casual voice never adds anything unchecked.
 
-**Phone numbers are never invented.** Receipts only dials a number that appears verbatim in fetched evidence, or the texter's own number in demo mode. Every call starts by saying it's an AI assistant.
+**Phone numbers are never invented.** Bro only dials a number that appears verbatim in fetched evidence, or the texter's own number in demo mode. Every call starts by saying it's an AI assistant.
 
 What we don't claim: a source can itself be wrong, which would produce a wrong ✅. That's why the quote and link are always shown.
 
