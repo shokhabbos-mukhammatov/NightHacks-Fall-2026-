@@ -17,6 +17,7 @@ export const page = (body: string) => `<!doctype html>
   button, .btn { display: block; width: 100%; text-align: center; box-sizing: border-box; font-size: 18px; font-weight: 600; padding: 15px; border-radius: 14px; border: 0; background: #0a84ff; color: #fff; text-decoration: none; cursor: pointer; }
   ul { padding-left: 18px; margin: 18px 0 0; } li { margin: 4px 0; } small { opacity: .6; } .err { color: #ff453a; }
   .qr { display: block; margin: 18px auto 0; width: 180px; height: 180px; } code { font-size: 15px; }
+  @media (max-width: 700px), (pointer: coarse) { .qrbox { display: none; } }
 </style></head><body><div class="card">${body}</div></body></html>`;
 
 export function mountJoin(app: Express) {
@@ -32,7 +33,7 @@ export function mountJoin(app: Express) {
 </form>
 <ul><li>Screenshot a sketchy text: “bro is this a scam?”</li><li>“Is Tartine open right now?”</li><li>“Call me and pretend to be Joe's Pizza” 😂</li></ul>
 ${stats.checks ? `<p style="text-align:center"><small>🛡️ Bro refused to say ${stats.claimsBlocked} things he couldn't prove across ${stats.checks} checks tonight</small></p>` : ""}
-<img class="qr" src="${qr}" alt="QR code to this page"><p style="text-align:center"><small>Scan to try it on your phone</small></p>`),
+<div class="qrbox"><img class="qr" src="${qr}" alt="QR code to open this page on your phone"><p style="text-align:center"><small>On a laptop? Scan this with your iPhone camera to join on your phone 📱</small></p></div>`),
     );
   });
 
