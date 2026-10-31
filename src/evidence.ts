@@ -156,3 +156,34 @@ export function hostname(url?: string) {
     return url;
   }
 }
+
+/**
+ * Custom "Receipts Link Inspector" Apify actor (built with Apify AI): domain age via RDAP,
+ * redirects, blocklists. Its `facts` are plain sentences derived from those lookups, which
+ * become quotable evidence like any other source.
+ */
+export async function inspectLink(store: EvidenceStore, url: string): Promise<Evidence | undefined> {
+  if (!cfg.apifyToken || !cfg.apifyLinkActor) return;
+  const actor = cfg.apifyLinkActor.replace("/", "~");
+  const res = await withTimeout(
+    fetch(`https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${cfg.apifyToken}&timeout=60`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }),
+    70_000,
+    "link inspector",
+  );
+  if (!res.ok) throw new Error(`link inspector ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const items = (await res.json()) as any[];
+  const r = items?.[0];
+  if (!r) return;
+  const facts: string[] = Array.isArray(r.facts) ? r.facts.filter((f: unknown) => typeof f === "string") : [];
+  if (facts.length === 0) return;
+  return store.add({
+    kind: "computed",
+    title: `Link inspection of ${r.domain ?? hostname(url)} (WHOIS/RDAP, redirects, blocklists)`,
+    url: r.rdapSource ?? r.finalUrl ?? url,
+    text: facts.join("\n"),
+  });
+}

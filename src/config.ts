@@ -8,6 +8,8 @@ export const cfg = {
   anthropicModel: get("ANTHROPIC_MODEL") ?? "claude-opus-5-5",
   firecrawlKey: get("FIRECRAWL_API_KEY"),
   apifyToken: get("APIFY_TOKEN"),
+  /** Custom Apify actor built with Apify AI (e.g. "yourname~receipts-link-inspector"). Optional. */
+  apifyLinkActor: get("APIFY_LINK_ACTOR"),
   cartesia: {
     apiKey: get("CARTESIA_API_KEY"),
     agentId: get("CARTESIA_AGENT_ID"),

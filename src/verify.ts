@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { askJSON, type UserContent } from "./llm.js";
-import { EvidenceStore, hostname, mapsLookup, scrapeUrl, webSearch, type Evidence } from "./evidence.js";
+import { EvidenceStore, hostname, inspectLink, mapsLookup, scrapeUrl, webSearch, type Evidence } from "./evidence.js";
 import { saveReport, type BlockedClaim } from "./receipts.js";
 
 // ---------------------------------------------------------------------------
@@ -162,7 +162,7 @@ export async function gather(plan: Plan, store: EvidenceStore, userText: string,
   }
 
   const jobs: Promise<unknown>[] = [];
-  for (const l of links.slice(0, 2)) jobs.push(scrapeUrl(store, l.url));
+  for (const l of links.slice(0, 2)) jobs.push(scrapeUrl(store, l.url), inspectLink(store, l.url));
   for (const item of plan.items.slice(0, 3)) {
     for (const q of item.searchQueries.slice(0, 2)) jobs.push(webSearch(store, q, 4));
     if (item.type === "live_business" && item.businessName) {
